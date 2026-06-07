@@ -1,0 +1,999 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VOLTEX — Partage de Vidéos</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0a0f;
+      --surface: #12121a;
+      --card: #1a1a26;
+      --accent: #ff3c3c;
+      --accent2: #ff8c00;
+      --text: #f0eee8;
+      --muted: #6b6b80;
+      --border: #2a2a3a;
+      --success: #22c55e;
+    }
+
+    html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; font-weight: 300; overflow-x: hidden; }
+
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none; z-index: 9999; opacity: 0.35;
+    }
+
+    /* ═══════════════════════════════ AUTH SCREEN ═══════════════════════════════ */
+    #authScreen {
+      position: fixed; inset: 0; z-index: 500;
+      display: flex; align-items: center; justify-content: center;
+      background: var(--bg);
+      padding: 24px;
+    }
+
+    .auth-wrap {
+      width: 100%; max-width: 440px;
+      animation: fadeUp 0.6s ease both;
+    }
+
+    .auth-logo {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 3rem; letter-spacing: 0.12em;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+      text-align: center; margin-bottom: 8px;
+    }
+
+    .auth-tagline {
+      text-align: center; color: var(--muted); font-size: 0.875rem;
+      margin-bottom: 36px; letter-spacing: 0.04em;
+    }
+
+    .auth-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 36px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .auth-box::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0; height: 2px;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+    }
+
+    /* tabs */
+    .auth-tabs {
+      display: flex; gap: 4px;
+      background: var(--card); border-radius: 10px; padding: 4px;
+      margin-bottom: 28px;
+    }
+
+    .auth-tab {
+      flex: 1; padding: 10px; border: none; background: none;
+      color: var(--muted); font-family: 'DM Sans', sans-serif;
+      font-size: 0.85rem; letter-spacing: 0.05em; text-transform: uppercase;
+      cursor: pointer; border-radius: 7px; transition: all 0.25s;
+    }
+
+    .auth-tab.active {
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      color: #fff; font-weight: 500;
+    }
+
+    /* panels */
+    .auth-panel { display: none; flex-direction: column; gap: 16px; }
+    .auth-panel.show { display: flex; animation: fadeUp 0.3s ease both; }
+
+    .field-group { display: flex; flex-direction: column; gap: 6px; }
+
+    .field-group label {
+      font-size: 0.78rem; letter-spacing: 0.06em; text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .field-group input {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 10px; padding: 13px 16px;
+      color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 0.95rem;
+      outline: none; transition: border-color 0.2s, box-shadow 0.2s;
+      width: 100%;
+    }
+
+    .field-group input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(255,60,60,0.12);
+    }
+
+    .field-group input::placeholder { color: var(--muted); }
+
+    .avatar-row {
+      display: flex; align-items: center; gap: 16px;
+    }
+
+    .avatar-preview {
+      width: 56px; height: 56px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Bebas Neue', sans-serif; font-size: 1.4rem;
+      color: #fff; flex-shrink: 0; overflow: hidden;
+      border: 2px solid var(--border);
+    }
+
+    .avatar-preview img { width: 100%; height: 100%; object-fit: cover; }
+
+    .avatar-upload-btn {
+      flex: 1; padding: 10px 16px;
+      background: var(--card); border: 1px dashed var(--border);
+      border-radius: 10px; color: var(--muted); font-size: 0.85rem;
+      cursor: pointer; text-align: center; transition: border-color 0.2s, color 0.2s;
+    }
+
+    .avatar-upload-btn:hover { border-color: var(--accent); color: var(--text); }
+
+    .btn-auth {
+      padding: 14px; width: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      border: none; border-radius: 10px;
+      color: #fff; font-family: 'DM Sans', sans-serif;
+      font-size: 0.95rem; font-weight: 500; cursor: pointer;
+      letter-spacing: 0.04em; margin-top: 4px;
+      transition: opacity 0.2s, transform 0.2s;
+    }
+
+    .btn-auth:hover { opacity: 0.88; transform: translateY(-1px); }
+
+    .auth-error {
+      font-size: 0.82rem; color: var(--accent);
+      text-align: center; min-height: 20px;
+    }
+
+    .auth-footer {
+      text-align: center; margin-top: 20px;
+      font-size: 0.8rem; color: var(--muted);
+    }
+
+    /* ═══════════════════════════════ MAIN APP ═══════════════════════════════ */
+    #appScreen { display: none; }
+    #appScreen.show { display: block; }
+
+    /* NAV */
+    nav {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 20px 48px;
+      border-bottom: 1px solid var(--border);
+      position: sticky; top: 0;
+      background: rgba(10,10,15,0.88);
+      backdrop-filter: blur(16px); z-index: 100;
+    }
+
+    .logo {
+      font-family: 'Bebas Neue', sans-serif; font-size: 2rem; letter-spacing: 0.1em;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+
+    nav .nav-links {
+      display: flex; gap: 32px; list-style: none;
+      font-size: 0.85rem; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted);
+    }
+
+    nav .nav-links li { cursor: pointer; transition: color 0.2s; }
+    nav .nav-links li:hover { color: var(--text); }
+    nav .nav-links li.active { color: var(--accent); }
+
+    /* USER ZONE in nav */
+    .nav-user {
+      display: flex; align-items: center; gap: 12px;
+      position: relative;
+    }
+
+    .nav-avatar {
+      width: 38px; height: 38px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Bebas Neue', sans-serif; font-size: 1rem; color: #fff;
+      cursor: pointer; overflow: hidden;
+      border: 2px solid transparent;
+      transition: border-color 0.2s;
+    }
+
+    .nav-avatar:hover { border-color: var(--accent); }
+    .nav-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+    .nav-username {
+      font-size: 0.875rem; font-weight: 500; cursor: pointer;
+    }
+
+    /* Dropdown */
+    .user-dropdown {
+      position: absolute; top: calc(100% + 12px); right: 0;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; width: 220px; overflow: hidden;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+      opacity: 0; pointer-events: none; transform: translateY(-8px);
+      transition: opacity 0.2s, transform 0.2s; z-index: 200;
+    }
+
+    .user-dropdown.open { opacity: 1; pointer-events: all; transform: translateY(0); }
+
+    .dropdown-header {
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 12px;
+    }
+
+    .dropdown-avatar {
+      width: 42px; height: 42px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Bebas Neue', sans-serif; font-size: 1.1rem; color: #fff;
+      overflow: hidden; flex-shrink: 0;
+    }
+
+    .dropdown-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+    .dropdown-info { flex: 1; min-width: 0; }
+    .dropdown-name { font-size: 0.9rem; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .dropdown-email { font-size: 0.75rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    .dropdown-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 12px 18px; font-size: 0.875rem; color: var(--muted);
+      cursor: pointer; transition: background 0.15s, color 0.15s;
+    }
+
+    .dropdown-item:hover { background: var(--card); color: var(--text); }
+    .dropdown-item.danger:hover { color: var(--accent); }
+    .dropdown-item svg { width: 16px; height: 16px; fill: currentColor; flex-shrink: 0; }
+
+    /* HERO */
+    .hero {
+      padding: 64px 48px 36px;
+      display: flex; flex-direction: column; gap: 12px;
+      animation: fadeUp 0.8s ease both;
+    }
+
+    .hero h1 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(2.5rem, 7vw, 5.5rem);
+      line-height: 0.95; letter-spacing: 0.02em;
+    }
+
+    .hero h1 span {
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+
+    .hero p { color: var(--muted); font-size: 1rem; max-width: 480px; margin-top: 8px; line-height: 1.6; }
+
+    /* MAIN */
+    .main {
+      display: grid; grid-template-columns: 1fr 320px;
+      gap: 32px; padding: 0 48px 80px; max-width: 1400px;
+    }
+
+    .upload-section { display: flex; flex-direction: column; gap: 24px; }
+
+    /* UPLOAD ZONE */
+    .upload-zone {
+      border: 2px dashed var(--border); border-radius: 16px;
+      padding: 56px 40px; text-align: center; cursor: pointer;
+      transition: border-color 0.3s, background 0.3s, transform 0.2s;
+      position: relative; overflow: hidden; background: var(--surface);
+      animation: fadeUp 0.8s 0.15s ease both;
+    }
+
+    .upload-zone::before {
+      content: ''; position: absolute; inset: -1px; border-radius: 16px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      opacity: 0; transition: opacity 0.3s; z-index: 0; padding: 2px;
+      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor; mask-composite: exclude;
+    }
+
+    .upload-zone:hover::before, .upload-zone.drag-over::before { opacity: 1; }
+    .upload-zone:hover, .upload-zone.drag-over { background: #16161f; transform: translateY(-2px); }
+    .upload-zone.drag-over { border-color: transparent; }
+    .upload-zone > * { position: relative; z-index: 1; }
+
+    .upload-icon {
+      width: 60px; height: 60px; margin: 0 auto 18px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 50%; display: flex; align-items: center; justify-content: center;
+      transition: transform 0.3s;
+    }
+
+    .upload-zone:hover .upload-icon { transform: scale(1.1) rotate(-5deg); }
+    .upload-icon svg { width: 26px; height: 26px; fill: #fff; }
+
+    .upload-zone h2 { font-family: 'Bebas Neue', sans-serif; font-size: 1.5rem; letter-spacing: 0.05em; margin-bottom: 8px; }
+    .upload-zone p { color: var(--muted); font-size: 0.875rem; line-height: 1.5; }
+
+    .btn-upload {
+      display: inline-block; margin-top: 22px; padding: 11px 30px;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      color: #fff; border: none; border-radius: 8px;
+      font-family: 'DM Sans', sans-serif; font-size: 0.875rem; font-weight: 500;
+      cursor: pointer; letter-spacing: 0.04em; text-transform: uppercase;
+      transition: opacity 0.2s, transform 0.2s;
+    }
+
+    .btn-upload:hover { opacity: 0.85; transform: translateY(-1px); }
+    #fileInput { display: none; }
+
+    /* PROGRESS */
+    .progress-container {
+      display: none; background: var(--surface); border-radius: 12px;
+      padding: 20px 24px; border: 1px solid var(--border);
+    }
+
+    .progress-container.show { display: block; }
+
+    .progress-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; font-size: 0.875rem; }
+    .progress-filename { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
+    .progress-pct { color: var(--accent); font-weight: 500; }
+    .progress-bar { height: 6px; background: var(--border); border-radius: 999px; overflow: hidden; }
+    .progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); border-radius: 999px; width: 0%; transition: width 0.3s ease; }
+
+    /* VIDEO GRID */
+    .section-title {
+      font-family: 'Bebas Neue', sans-serif; font-size: 1.3rem; letter-spacing: 0.06em;
+      color: var(--muted); text-transform: uppercase; margin-bottom: 4px;
+    }
+
+    .video-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 18px; }
+
+    .video-card {
+      background: var(--card); border-radius: 12px; overflow: hidden;
+      border: 1px solid var(--border);
+      transition: transform 0.25s, border-color 0.25s, box-shadow 0.25s;
+      animation: fadeUp 0.5s ease both;
+    }
+
+    .video-card:hover { transform: translateY(-4px); border-color: #3a3a50; box-shadow: 0 16px 40px rgba(0,0,0,0.5); }
+
+    .video-thumb { position: relative; aspect-ratio: 16/9; background: var(--surface); overflow: hidden; cursor: pointer; }
+    .video-thumb video { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+    .play-overlay {
+      position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+      background: rgba(0,0,0,0.3); opacity: 0; transition: opacity 0.25s;
+    }
+
+    .video-thumb:hover .play-overlay { opacity: 1; }
+
+    .play-btn {
+      width: 46px; height: 46px; background: rgba(255,60,60,0.9); border-radius: 50%;
+      display: flex; align-items: center; justify-content: center; transition: transform 0.2s;
+    }
+
+    .play-btn:hover { transform: scale(1.1); }
+    .play-btn svg { width: 18px; height: 18px; fill: #fff; margin-left: 3px; }
+
+    .video-info { padding: 12px 14px; }
+
+    .video-info h3 { font-size: 0.875rem; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 6px; }
+
+    .video-meta { display: flex; justify-content: space-between; align-items: center; font-size: 0.78rem; color: var(--muted); }
+
+    .video-size { background: var(--surface); padding: 2px 8px; border-radius: 999px; font-size: 0.75rem; }
+
+    .delete-btn {
+      background: none; border: none; color: var(--muted); cursor: pointer;
+      padding: 4px; border-radius: 6px; transition: color 0.2s, background 0.2s; display: flex; align-items: center;
+    }
+
+    .delete-btn:hover { color: var(--accent); background: rgba(255,60,60,0.1); }
+    .delete-btn svg { width: 15px; height: 15px; fill: currentColor; }
+
+    .empty-state { grid-column: 1/-1; text-align: center; padding: 60px 20px; color: var(--muted); }
+    .empty-state svg { width: 44px; height: 44px; fill: var(--border); margin-bottom: 16px; }
+    .empty-state p { font-size: 0.875rem; }
+
+    /* SIDEBAR */
+    .sidebar { display: flex; flex-direction: column; gap: 18px; animation: fadeUp 0.8s 0.2s ease both; }
+
+    /* PROFILE CARD */
+    .profile-card {
+      background: var(--surface); border-radius: 16px; border: 1px solid var(--border);
+      overflow: hidden;
+    }
+
+    .profile-banner {
+      height: 70px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      position: relative;
+    }
+
+    .profile-body { padding: 0 20px 20px; }
+
+    .profile-avatar-wrap {
+      margin-top: -26px; margin-bottom: 12px;
+    }
+
+    .profile-avatar {
+      width: 52px; height: 52px; border-radius: 50%;
+      background: linear-gradient(135deg, #1a1a26, #2a2a3a);
+      border: 3px solid var(--surface);
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Bebas Neue', sans-serif; font-size: 1.3rem; color: var(--text);
+      overflow: hidden;
+    }
+
+    .profile-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+    .profile-name { font-size: 1rem; font-weight: 500; margin-bottom: 2px; }
+    .profile-email { font-size: 0.78rem; color: var(--muted); margin-bottom: 14px; }
+
+    .profile-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+    .pstat {
+      background: var(--card); border-radius: 10px; padding: 10px 12px;
+      border: 1px solid var(--border);
+    }
+
+    .pstat-val { font-size: 1.1rem; font-weight: 500; }
+    .pstat-label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; margin-top: 2px; }
+
+    .side-card { background: var(--surface); border-radius: 14px; padding: 20px; border: 1px solid var(--border); }
+
+    .side-card h3 { font-family: 'Bebas Neue', sans-serif; font-size: 1rem; letter-spacing: 0.06em; margin-bottom: 14px; color: var(--muted); }
+
+    .formats { display: flex; flex-wrap: wrap; gap: 6px; }
+
+    .fmt-tag { padding: 3px 10px; background: var(--card); border-radius: 999px; font-size: 0.75rem; letter-spacing: 0.04em; border: 1px solid var(--border); color: var(--muted); }
+
+    /* MODAL PLAYER */
+    .modal-bg {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px);
+      z-index: 300; display: none; align-items: center; justify-content: center; padding: 24px;
+    }
+
+    .modal-bg.show { display: flex; }
+
+    .modal { background: var(--surface); border-radius: 16px; border: 1px solid var(--border); max-width: 860px; width: 100%; overflow: hidden; animation: scaleIn 0.3s ease; }
+
+    .modal-header { display: flex; align-items: center; justify-content: space-between; padding: 18px 22px; border-bottom: 1px solid var(--border); }
+    .modal-header h3 { font-size: 0.95rem; font-weight: 500; }
+    .modal-close { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 1.4rem; line-height: 1; transition: color 0.2s; }
+    .modal-close:hover { color: var(--text); }
+    .modal video { width: 100%; max-height: 60vh; display: block; background: #000; }
+
+    /* PROFILE EDIT MODAL */
+    .edit-modal-bg {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px);
+      z-index: 400; display: none; align-items: center; justify-content: center; padding: 24px;
+    }
+
+    .edit-modal-bg.show { display: flex; }
+
+    .edit-modal {
+      background: var(--surface); border-radius: 20px; border: 1px solid var(--border);
+      max-width: 420px; width: 100%; overflow: hidden; animation: scaleIn 0.3s ease;
+      position: relative;
+    }
+
+    .edit-modal::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, var(--accent), var(--accent2)); }
+
+    .edit-modal-header { padding: 22px 24px 0; display: flex; align-items: center; justify-content: space-between; }
+    .edit-modal-header h3 { font-family: 'Bebas Neue', sans-serif; font-size: 1.3rem; letter-spacing: 0.05em; }
+    .edit-modal-body { padding: 20px 24px 28px; display: flex; flex-direction: column; gap: 16px; }
+
+    /* TOAST */
+    .toast {
+      position: fixed; bottom: 28px; right: 28px;
+      background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+      padding: 12px 18px; font-size: 0.875rem; display: flex; align-items: center; gap: 10px;
+      z-index: 999; transform: translateY(80px); opacity: 0;
+      transition: transform 0.35s ease, opacity 0.35s ease;
+    }
+
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .toast .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--success); flex-shrink: 0; }
+    .toast.error .dot { background: var(--accent); }
+
+    /* ANIMATIONS */
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes scaleIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+
+    @media (max-width: 900px) {
+      .main { grid-template-columns: 1fr; }
+      nav, .hero, .main { padding-left: 20px; padding-right: 20px; }
+      nav { padding-top: 16px; padding-bottom: 16px; }
+      .nav-links { display: none; }
+      .hero { padding-top: 40px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════ AUTH SCREEN ═══════════════════ -->
+<div id="authScreen">
+  <div class="auth-wrap">
+    <div class="auth-logo">VOLTEX</div>
+    <div class="auth-tagline">Partagez. Regardez. Profitez.</div>
+
+    <div class="auth-box">
+      <div class="auth-tabs">
+        <button class="auth-tab active" onclick="switchTab('login')">Connexion</button>
+        <button class="auth-tab" onclick="switchTab('register')">Inscription</button>
+      </div>
+
+      <!-- LOGIN -->
+      <div class="auth-panel show" id="panelLogin">
+        <div class="field-group">
+          <label>Email</label>
+          <input type="email" id="loginEmail" placeholder="vous@exemple.com" />
+        </div>
+        <div class="field-group">
+          <label>Mot de passe</label>
+          <input type="password" id="loginPassword" placeholder="••••••••" />
+        </div>
+        <div class="auth-error" id="loginError"></div>
+        <button class="btn-auth" onclick="doLogin()">Se connecter</button>
+      </div>
+
+      <!-- REGISTER -->
+      <div class="auth-panel" id="panelRegister">
+        <div class="field-group">
+          <label>Photo de profil</label>
+          <div class="avatar-row">
+            <div class="avatar-preview" id="regAvatarPreview">?</div>
+            <div class="avatar-upload-btn" onclick="document.getElementById('avatarInput').click()">
+              Choisir une photo
+            </div>
+            <input type="file" id="avatarInput" accept="image/*" style="display:none" onchange="previewAvatar(this)" />
+          </div>
+        </div>
+        <div class="field-group">
+          <label>Nom d'utilisateur</label>
+          <input type="text" id="regName" placeholder="MonPseudo" />
+        </div>
+        <div class="field-group">
+          <label>Email</label>
+          <input type="email" id="regEmail" placeholder="vous@exemple.com" />
+        </div>
+        <div class="field-group">
+          <label>Mot de passe</label>
+          <input type="password" id="regPassword" placeholder="Min. 6 caractères" />
+        </div>
+        <div class="auth-error" id="registerError"></div>
+        <button class="btn-auth" onclick="doRegister()">Créer mon compte</button>
+      </div>
+    </div>
+
+    <div class="auth-footer">Vos données restent sur votre appareil.</div>
+  </div>
+</div>
+
+<!-- ═══════════════════ APP SCREEN ═══════════════════ -->
+<div id="appScreen">
+
+  <nav>
+    <div class="logo">VOLTEX</div>
+    <ul class="nav-links">
+      <li class="active">Accueil</li>
+      <li>Galerie</li>
+      <li>À propos</li>
+    </ul>
+    <div class="nav-user">
+      <span class="nav-username" id="navUsername" onclick="toggleDropdown()"></span>
+      <div class="nav-avatar" id="navAvatar" onclick="toggleDropdown()"></div>
+
+      <div class="user-dropdown" id="userDropdown">
+        <div class="dropdown-header">
+          <div class="dropdown-avatar" id="ddAvatar"></div>
+          <div class="dropdown-info">
+            <div class="dropdown-name" id="ddName"></div>
+            <div class="dropdown-email" id="ddEmail"></div>
+          </div>
+        </div>
+        <div class="dropdown-item" onclick="openEditProfile()">
+          <svg viewBox="0 0 24 24"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>
+          Modifier le profil
+        </div>
+        <div class="dropdown-item danger" onclick="doLogout()">
+          <svg viewBox="0 0 24 24"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg>
+          Se déconnecter
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <div class="hero">
+    <h1>BIENVENUE,<br><span id="heroName">UTILISATEUR</span></h1>
+    <p>Uploadez, organisez et visionnez vos vidéos directement depuis votre navigateur.</p>
+  </div>
+
+  <div class="main">
+    <div class="upload-section">
+
+      <div class="upload-zone" id="uploadZone">
+        <div class="upload-icon">
+          <svg viewBox="0 0 24 24"><path d="M19.35 10.04A7.49 7.49 0 0 0 12 4C9.11 4 6.6 5.64 5.35 8.04A5.994 5.994 0 0 0 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/></svg>
+        </div>
+        <h2>Glissez &amp; Déposez</h2>
+        <p>Déposez vos fichiers vidéo ici, ou cliquez pour parcourir.<br/>MP4, WebM, MOV, AVI, MKV acceptés.</p>
+        <button class="btn-upload" onclick="document.getElementById('fileInput').click()">Choisir une vidéo</button>
+        <input type="file" id="fileInput" accept="video/*" multiple />
+      </div>
+
+      <div class="progress-container" id="progressContainer">
+        <div class="progress-header">
+          <span class="progress-filename" id="progressFilename">Chargement...</span>
+          <span class="progress-pct" id="progressPct">0%</span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+      </div>
+
+      <div class="section-title" id="gridTitle" style="display:none">Mes vidéos</div>
+      <div class="video-grid" id="videoGrid">
+        <div class="empty-state" id="emptyState">
+          <svg viewBox="0 0 24 24"><path d="M18 4l2 4h-3l-2-4h-2l2 4h-3l-2-4H8l2 4H7L5 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4h-4z"/></svg>
+          <p>Aucune vidéo pour l'instant.<br/>Uploadez votre première vidéo ci-dessus.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+
+      <!-- Profile card -->
+      <div class="profile-card">
+        <div class="profile-banner"></div>
+        <div class="profile-body">
+          <div class="profile-avatar-wrap">
+            <div class="profile-avatar" id="sideAvatar"></div>
+          </div>
+          <div class="profile-name" id="sideName"></div>
+          <div class="profile-email" id="sideEmail"></div>
+          <div class="profile-stats">
+            <div class="pstat">
+              <div class="pstat-val" id="statCount">0</div>
+              <div class="pstat-label">Vidéos</div>
+            </div>
+            <div class="pstat">
+              <div class="pstat-val" id="statSize">0 MB</div>
+              <div class="pstat-label">Stockage</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="side-card">
+        <h3>Formats acceptés</h3>
+        <div class="formats">
+          <span class="fmt-tag">MP4</span><span class="fmt-tag">WebM</span>
+          <span class="fmt-tag">MOV</span><span class="fmt-tag">AVI</span>
+          <span class="fmt-tag">MKV</span><span class="fmt-tag">OGV</span>
+          <span class="fmt-tag">3GP</span>
+        </div>
+      </div>
+
+      <div class="side-card">
+        <h3>Conseils</h3>
+        <p style="font-size:0.83rem;color:var(--muted);line-height:1.65">
+          Les vidéos sont stockées localement.<br/><br/>
+          Utilisez MP4 (H.264) pour de meilleures performances.<br/><br/>
+          Vous pouvez uploader plusieurs vidéos à la fois.
+        </p>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<!-- Modal lecteur -->
+<div class="modal-bg" id="modalBg" onclick="closeModal(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modalTitle">Vidéo</h3>
+      <button class="modal-close" onclick="closeModalBtn()">✕</button>
+    </div>
+    <video id="modalVideo" controls autoplay></video>
+  </div>
+</div>
+
+<!-- Modal édition profil -->
+<div class="edit-modal-bg" id="editModalBg" onclick="closeEditModal(event)">
+  <div class="edit-modal">
+    <div class="edit-modal-header">
+      <h3>Modifier le profil</h3>
+      <button class="modal-close" onclick="closeEditModalBtn()">✕</button>
+    </div>
+    <div class="edit-modal-body">
+      <div class="field-group">
+        <label>Photo de profil</label>
+        <div class="avatar-row">
+          <div class="avatar-preview" id="editAvatarPreview"></div>
+          <div class="avatar-upload-btn" onclick="document.getElementById('editAvatarInput').click()">Changer la photo</div>
+          <input type="file" id="editAvatarInput" accept="image/*" style="display:none" onchange="previewEditAvatar(this)" />
+        </div>
+      </div>
+      <div class="field-group">
+        <label>Nom d'utilisateur</label>
+        <input type="text" id="editName" />
+      </div>
+      <div class="field-group">
+        <label>Email</label>
+        <input type="email" id="editEmail" />
+      </div>
+      <button class="btn-auth" onclick="saveProfile()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"><div class="dot"></div><span id="toastMsg"></span></div>
+
+<script>
+  /* ─── STATE ─── */
+  let users = JSON.parse(localStorage.getItem('vx_users') || '[]');
+  let currentUser = JSON.parse(localStorage.getItem('vx_current') || 'null');
+  const videos = [];
+  let totalSize = 0;
+
+  /* ─── BOOT ─── */
+  if (currentUser) showApp();
+
+  /* ─── AUTH TABS ─── */
+  function switchTab(tab) {
+    document.querySelectorAll('.auth-tab').forEach((t,i) => t.classList.toggle('active', (tab==='login'&&i===0)||(tab==='register'&&i===1)));
+    document.getElementById('panelLogin').classList.toggle('show', tab==='login');
+    document.getElementById('panelRegister').classList.toggle('show', tab==='register');
+    document.getElementById('loginError').textContent='';
+    document.getElementById('registerError').textContent='';
+  }
+
+  /* ─── AVATAR PREVIEW (register) ─── */
+  let regAvatarDataUrl = null;
+  function previewAvatar(input) {
+    if (!input.files[0]) return;
+    const r = new FileReader();
+    r.onload = e => {
+      regAvatarDataUrl = e.target.result;
+      const p = document.getElementById('regAvatarPreview');
+      p.innerHTML = `<img src="${regAvatarDataUrl}" />`;
+    };
+    r.readAsDataURL(input.files[0]);
+  }
+
+  /* ─── REGISTER ─── */
+  function doRegister() {
+    const name  = document.getElementById('regName').value.trim();
+    const email = document.getElementById('regEmail').value.trim().toLowerCase();
+    const pass  = document.getElementById('regPassword').value;
+    const err   = document.getElementById('registerError');
+
+    if (!name)  { err.textContent='Veuillez entrer un nom d\'utilisateur.'; return; }
+    if (!email) { err.textContent='Veuillez entrer un email.'; return; }
+    if (pass.length < 6) { err.textContent='Le mot de passe doit faire au moins 6 caractères.'; return; }
+    if (users.find(u => u.email===email)) { err.textContent='Cet email est déjà utilisé.'; return; }
+
+    const user = { id: Date.now(), name, email, pass, avatar: regAvatarDataUrl };
+    users.push(user);
+    localStorage.setItem('vx_users', JSON.stringify(users));
+    loginAs(user);
+  }
+
+  /* ─── LOGIN ─── */
+  function doLogin() {
+    const email = document.getElementById('loginEmail').value.trim().toLowerCase();
+    const pass  = document.getElementById('loginPassword').value;
+    const err   = document.getElementById('loginError');
+    const user  = users.find(u => u.email===email && u.pass===pass);
+    if (!user) { err.textContent='Email ou mot de passe incorrect.'; return; }
+    loginAs(user);
+  }
+
+  function loginAs(user) {
+    currentUser = user;
+    localStorage.setItem('vx_current', JSON.stringify(user));
+    showApp();
+  }
+
+  /* ─── LOGOUT ─── */
+  function doLogout() {
+    currentUser = null;
+    localStorage.removeItem('vx_current');
+    document.getElementById('appScreen').classList.remove('show');
+    document.getElementById('authScreen').style.display='flex';
+    document.getElementById('userDropdown').classList.remove('open');
+    showToast('Déconnecté avec succès.');
+  }
+
+  /* ─── SHOW APP ─── */
+  function showApp() {
+    document.getElementById('authScreen').style.display='none';
+    document.getElementById('appScreen').classList.add('show');
+    refreshUserUI();
+  }
+
+  function refreshUserUI() {
+    const u = currentUser;
+    // Nav
+    document.getElementById('navUsername').textContent = u.name;
+    setAvatarEl('navAvatar', u);
+    // Dropdown
+    setAvatarEl('ddAvatar', u);
+    document.getElementById('ddName').textContent  = u.name;
+    document.getElementById('ddEmail').textContent = u.email;
+    // Hero
+    document.getElementById('heroName').textContent = u.name.toUpperCase();
+    // Sidebar profile
+    setAvatarEl('sideAvatar', u);
+    document.getElementById('sideName').textContent  = u.name;
+    document.getElementById('sideEmail').textContent = u.email;
+  }
+
+  function setAvatarEl(id, user) {
+    const el = document.getElementById(id);
+    if (user.avatar) {
+      el.innerHTML = `<img src="${user.avatar}" />`;
+    } else {
+      el.innerHTML = user.name.charAt(0).toUpperCase();
+    }
+  }
+
+  /* ─── DROPDOWN ─── */
+  function toggleDropdown() {
+    document.getElementById('userDropdown').classList.toggle('open');
+  }
+  document.addEventListener('click', e => {
+    if (!e.target.closest('.nav-user')) document.getElementById('userDropdown').classList.remove('open');
+  });
+
+  /* ─── EDIT PROFILE ─── */
+  let editAvatarDataUrl = null;
+
+  function openEditProfile() {
+    document.getElementById('userDropdown').classList.remove('open');
+    document.getElementById('editName').value  = currentUser.name;
+    document.getElementById('editEmail').value = currentUser.email;
+    editAvatarDataUrl = currentUser.avatar;
+    const p = document.getElementById('editAvatarPreview');
+    if (currentUser.avatar) p.innerHTML=`<img src="${currentUser.avatar}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+    else p.textContent = currentUser.name.charAt(0).toUpperCase();
+    document.getElementById('editModalBg').classList.add('show');
+  }
+
+  function previewEditAvatar(input) {
+    if (!input.files[0]) return;
+    const r = new FileReader();
+    r.onload = e => {
+      editAvatarDataUrl = e.target.result;
+      const p = document.getElementById('editAvatarPreview');
+      p.innerHTML=`<img src="${editAvatarDataUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+    };
+    r.readAsDataURL(input.files[0]);
+  }
+
+  function saveProfile() {
+    const name  = document.getElementById('editName').value.trim();
+    const email = document.getElementById('editEmail').value.trim().toLowerCase();
+    if (!name||!email) { showToast('Champs requis.', true); return; }
+    currentUser.name   = name;
+    currentUser.email  = email;
+    currentUser.avatar = editAvatarDataUrl;
+    // Update in users array
+    const idx = users.findIndex(u=>u.id===currentUser.id);
+    if (idx>-1) users[idx]=currentUser;
+    localStorage.setItem('vx_users', JSON.stringify(users));
+    localStorage.setItem('vx_current', JSON.stringify(currentUser));
+    refreshUserUI();
+    closeEditModalBtn();
+    showToast('Profil mis à jour !');
+  }
+
+  function closeEditModal(e) { if(e.target===document.getElementById('editModalBg')) closeEditModalBtn(); }
+  function closeEditModalBtn() { document.getElementById('editModalBg').classList.remove('show'); }
+
+  /* ─── UPLOAD ─── */
+  const uploadZone = document.getElementById('uploadZone');
+  const fileInput  = document.getElementById('fileInput');
+
+  uploadZone.addEventListener('dragover', e=>{ e.preventDefault(); uploadZone.classList.add('drag-over'); });
+  uploadZone.addEventListener('dragleave', ()=>uploadZone.classList.remove('drag-over'));
+  uploadZone.addEventListener('drop', e=>{ e.preventDefault(); uploadZone.classList.remove('drag-over'); handleFiles(e.dataTransfer.files); });
+  fileInput.addEventListener('change', ()=>handleFiles(fileInput.files));
+
+  function handleFiles(files) {
+    const vf = Array.from(files).filter(f=>f.type.startsWith('video/'));
+    if (!vf.length) { showToast('Aucun fichier vidéo valide.', true); return; }
+    vf.forEach((f,i)=>setTimeout(()=>simulateUpload(f), i*300));
+  }
+
+  function simulateUpload(file) {
+    const pc = document.getElementById('progressContainer');
+    pc.classList.add('show');
+    document.getElementById('progressFilename').textContent = file.name;
+    let pct=0;
+    const iv = setInterval(()=>{
+      pct += Math.random()*18+4;
+      if(pct>=100){ pct=100; clearInterval(iv);
+        document.getElementById('progressFill').style.width='100%';
+        document.getElementById('progressPct').textContent='100%';
+        setTimeout(()=>{ pc.classList.remove('show'); document.getElementById('progressFill').style.width='0%'; addVideo(file); },400);
+      }
+      document.getElementById('progressFill').style.width=pct+'%';
+      document.getElementById('progressPct').textContent=Math.round(pct)+'%';
+    },80);
+  }
+
+  function addVideo(file) {
+    const url=URL.createObjectURL(file), id=Date.now()+Math.random();
+    videos.push({id,file,url});
+    totalSize+=file.size;
+    renderCards();
+    updateStats();
+    showToast(`"${file.name.slice(0,28)}" ajoutée !`);
+  }
+
+  function renderCards() {
+    document.getElementById('emptyState').style.display='none';
+    document.getElementById('gridTitle').style.display='block';
+    document.querySelectorAll('.video-card').forEach(c=>c.remove());
+    videos.forEach((v,i)=>{
+      const card=document.createElement('div');
+      card.className='video-card'; card.style.animationDelay=(i*0.05)+'s';
+      card.innerHTML=`
+        <div class="video-thumb" onclick="openModal('${v.url}','${escHtml(v.file.name)}')">
+          <video src="${v.url}" muted preload="metadata" style="pointer-events:none"></video>
+          <div class="play-overlay"><div class="play-btn"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div></div>
+        </div>
+        <div class="video-info">
+          <h3 title="${escHtml(v.file.name)}">${escHtml(v.file.name)}</h3>
+          <div class="video-meta">
+            <span class="video-size">${formatSize(v.file.size)}</span>
+            <button class="delete-btn" onclick="deleteVideo('${v.id}',event)"><svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button>
+          </div>
+        </div>`;
+      document.getElementById('videoGrid').appendChild(card);
+    });
+    if(!videos.length){ document.getElementById('emptyState').style.display=''; document.getElementById('gridTitle').style.display='none'; }
+  }
+
+  function deleteVideo(id,e) {
+    e.stopPropagation();
+    const idx=videos.findIndex(v=>v.id==id); if(idx===-1)return;
+    totalSize-=videos[idx].file.size; URL.revokeObjectURL(videos[idx].url);
+    videos.splice(idx,1); renderCards(); updateStats(); showToast('Vidéo supprimée.');
+  }
+
+  function updateStats() {
+    document.getElementById('statCount').textContent=videos.length;
+    document.getElementById('statSize').textContent=formatSize(totalSize);
+  }
+
+  /* ─── MODAL PLAYER ─── */
+  function openModal(url,name) {
+    document.getElementById('modalVideo').src=url;
+    document.getElementById('modalTitle').textContent=name;
+    document.getElementById('modalBg').classList.add('show');
+  }
+  function closeModal(e){ if(e.target===document.getElementById('modalBg')) closeModalBtn(); }
+  function closeModalBtn(){ document.getElementById('modalBg').classList.remove('show'); const v=document.getElementById('modalVideo'); v.pause(); v.src=''; }
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ closeModalBtn(); closeEditModalBtn(); } });
+
+  /* ─── HELPERS ─── */
+  function formatSize(b){ if(b<1024)return b+' B'; if(b<1048576)return(b/1024).toFixed(1)+' KB'; if(b<1073741824)return(b/1048576).toFixed(1)+' MB'; return(b/1073741824).toFixed(2)+' GB'; }
+  function escHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+  let tt;
+  function showToast(msg,isError=false){
+    const t=document.getElementById('toast');
+    document.getElementById('toastMsg').textContent=msg;
+    t.classList.toggle('error',isError); t.classList.add('show');
+    clearTimeout(tt); tt=setTimeout(()=>t.classList.remove('show'),3000);
+  }
+</script>
+</body>
+</html>
