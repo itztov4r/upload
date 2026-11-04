@@ -836,10 +836,15 @@
 
   function setAvatarEl(id, user) {
     const el = document.getElementById(id);
-    if (user.avatar) {
-      el.innerHTML = `<img src="${user.avatar}" />`;
+    const avatar = typeof user.avatar === 'string' ? user.avatar : '';
+    el.replaceChildren();
+    if (/^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(avatar)) {
+      const img = document.createElement('img');
+      img.alt = '';
+      img.src = avatar;
+      el.appendChild(img);
     } else {
-      el.innerHTML = user.name.charAt(0).toUpperCase();
+      el.textContent = String(user.name || '?').charAt(0).toUpperCase();
     }
   }
 
@@ -945,7 +950,7 @@
       const card=document.createElement('div');
       card.className='video-card'; card.style.animationDelay=(i*0.05)+'s';
       card.innerHTML=`
-        <div class="video-thumb" onclick="openModal('${v.url}','${escHtml(v.file.name)}')">
+        <div class="video-thumb">
           <video src="${v.url}" muted preload="metadata" style="pointer-events:none"></video>
           <div class="play-overlay"><div class="play-btn"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div></div>
         </div>
@@ -953,9 +958,11 @@
           <h3 title="${escHtml(v.file.name)}">${escHtml(v.file.name)}</h3>
           <div class="video-meta">
             <span class="video-size">${formatSize(v.file.size)}</span>
-            <button class="delete-btn" onclick="deleteVideo('${v.id}',event)"><svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button>
+            <button class="delete-btn" type="button" aria-label="Supprimer la vidéo"><svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button>
           </div>
         </div>`;
+      card.querySelector('.video-thumb').addEventListener('click', () => openModal(v.url, v.file.name));
+      card.querySelector('.delete-btn').addEventListener('click', e => deleteVideo(v.id, e));
       document.getElementById('videoGrid').appendChild(card);
     });
     if(!videos.length){ document.getElementById('emptyState').style.display=''; document.getElementById('gridTitle').style.display='none'; }
