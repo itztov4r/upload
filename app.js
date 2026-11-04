@@ -76,7 +76,7 @@ function renderCards() {
     card.className = 'video-card';
     card.style.animationDelay = (i * 0.05) + 's';
     card.innerHTML = `
-      <div class="video-thumb" onclick="openModal('${v.url}', '${escHtml(v.file.name)}')">
+      <div class="video-thumb">
         <video src="${v.url}" muted preload="metadata" style="pointer-events:none"></video>
         <div class="play-overlay">
           <div class="play-btn">
@@ -88,11 +88,13 @@ function renderCards() {
         <h3 title="${escHtml(v.file.name)}">${escHtml(v.file.name)}</h3>
         <div class="video-meta">
           <span class="video-size">${formatSize(v.file.size)}</span>
-          <button class="delete-btn" onclick="deleteVideo('${v.id}', event)" title="Supprimer">
+          <button class="delete-btn" type="button" aria-label="Supprimer la vidéo" title="Supprimer">
             <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
           </button>
         </div>
       </div>`;
+    card.querySelector('.video-thumb').addEventListener('click', () => openModal(v.url, v.file.name));
+    card.querySelector('.delete-btn').addEventListener('click', e => deleteVideo(v.id, e));
     videoGrid.appendChild(card);
   });
 
