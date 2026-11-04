@@ -512,6 +512,9 @@
       .nav-links { display: none; }
       .hero { padding-top: 40px; }
     }
+  @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+  .video-thumb:focus-visible{outline:3px solid var(--accent);outline-offset:-3px}
+  .edit-modal,.modal{max-height:90dvh;overflow-y:auto}
   </style>
 </head>
 <body>
@@ -692,22 +695,22 @@
 </div>
 
 <!-- Modal lecteur -->
-<div class="modal-bg" id="modalBg" onclick="closeModal(event)">
+<div class="modal-bg" id="modalBg" role="dialog" aria-modal="true" aria-labelledby="modalTitle" onclick="closeModal(event)">
   <div class="modal">
     <div class="modal-header">
       <h3 id="modalTitle">Vidéo</h3>
-      <button class="modal-close" onclick="closeModalBtn()">✕</button>
+      <button class="modal-close" type="button" aria-label="Fermer" onclick="closeModalBtn()">✕</button>
     </div>
     <video id="modalVideo" controls autoplay></video>
   </div>
 </div>
 
 <!-- Modal édition profil -->
-<div class="edit-modal-bg" id="editModalBg" onclick="closeEditModal(event)">
+<div class="edit-modal-bg" id="editModalBg" role="dialog" aria-modal="true" aria-label="Modifier le profil" onclick="closeEditModal(event)">
   <div class="edit-modal">
     <div class="edit-modal-header">
       <h3>Modifier le profil</h3>
-      <button class="modal-close" onclick="closeEditModalBtn()">✕</button>
+      <button class="modal-close" type="button" aria-label="Fermer" onclick="closeEditModalBtn()">✕</button>
     </div>
     <div class="edit-modal-body">
       <div class="field-group">
@@ -732,12 +735,19 @@
 </div>
 
 <!-- Toast -->
-<div class="toast" id="toast"><div class="dot"></div><span id="toastMsg"></span></div>
+<div class="toast" id="toast" role="status" aria-live="polite"><div class="dot"></div><span id="toastMsg"></span></div>
 
+<script src="accounts.js"></script>
 <script>
   /* ─── STATE ─── */
-  let users = JSON.parse(localStorage.getItem('vx_users') || '[]');
-  let currentUser = JSON.parse(localStorage.getItem('vx_current') || 'null');
+  const savedUsers=LocalAccounts.read('vx_users',[]);
+  let users=Array.isArray(savedUsers)?savedUsers.filter(LocalAccounts.valid):[];
+  const savedCurrent=LocalAccounts.read('vx_current',null);
+  let currentUser=LocalAccounts.valid(savedCurrent)?LocalAccounts.publicProfile(savedCurrent):null;
+  function storeLocal(key,value){try{localStorage.setItem(key,JSON.stringify(value));return true;}catch{return false;}}
+  const accountsReady=LocalAccounts.migrate(users).then(next=>{users=next;storeLocal('vx_users',users);return true;}).catch(()=>false);
+  // Never persist a password or password hash in the active profile.
+  if(currentUser)storeLocal('vx_current',currentUser);
   const videos = [];
   let totalSize = 0;
 
@@ -757,17 +767,18 @@
   let regAvatarDataUrl = null;
   function previewAvatar(input) {
     if (!input.files[0]) return;
+    if(!/^image\/(png|jpeg|webp)$/.test(input.files[0].type)||input.files[0].size>2*1024*1024){showToast('Image PNG, JPEG ou WebP, 2 Mo maximum.',true);return;}
     const r = new FileReader();
     r.onload = e => {
       regAvatarDataUrl = e.target.result;
       const p = document.getElementById('regAvatarPreview');
-      p.innerHTML = `<img src="${regAvatarDataUrl}" />`;
+      setAvatarEl('regAvatarPreview',{name:'?',avatar:regAvatarDataUrl});
     };
     r.readAsDataURL(input.files[0]);
   }
 
   /* ─── REGISTER ─── */
-  function doRegister() {
+  async function doRegister() {
     const name  = document.getElementById('regName').value.trim();
     const email = document.getElementById('regEmail').value.trim().toLowerCase();
     const pass  = document.getElementById('regPassword').value;
@@ -778,32 +789,42 @@
     if (pass.length < 6) { err.textContent='Le mot de passe doit faire au moins 6 caractères.'; return; }
     if (users.find(u => u.email===email)) { err.textContent='Cet email est déjà utilisé.'; return; }
 
-    const user = { id: Date.now(), name, email, pass, avatar: regAvatarDataUrl };
+    if(!await accountsReady){err.textContent='Le stockage sécurisé nécessite HTTPS ou localhost.';return;}
+    if(users.some(u=>u.email===email)){err.textContent='Cet email est déjà utilisé.';return;}
+    let password;
+    try{password=await LocalAccounts.passwordRecord(pass);}catch{err.textContent='Création du compte indisponible dans ce navigateur.';return;}
+    if(users.some(u=>u.email===email)){err.textContent='Cet email est déjà utilisé.';return;}
+    const user = { id: crypto.randomUUID(), name, email, password, avatar: regAvatarDataUrl };
     users.push(user);
-    localStorage.setItem('vx_users', JSON.stringify(users));
+    if(!storeLocal('vx_users',users))showToast('Stockage indisponible : profil disponible uniquement dans cette session.',true);
     loginAs(user);
   }
 
   /* ─── LOGIN ─── */
-  function doLogin() {
+  async function doLogin() {
     const email = document.getElementById('loginEmail').value.trim().toLowerCase();
     const pass  = document.getElementById('loginPassword').value;
     const err   = document.getElementById('loginError');
-    const user  = users.find(u => u.email===email && u.pass===pass);
+    if(!await accountsReady){err.textContent='Connexion locale indisponible : utilisez HTTPS ou localhost.';return;}
+    const user=users.find(u=>u.email===email);
+    let verified=false;
+    try{verified=!!user&&await LocalAccounts.verify(pass,user.password);}catch{}
+    if(!verified){err.textContent='Email ou mot de passe incorrect.';return;}
     if (!user) { err.textContent='Email ou mot de passe incorrect.'; return; }
     loginAs(user);
   }
 
   function loginAs(user) {
-    currentUser = user;
-    localStorage.setItem('vx_current', JSON.stringify(user));
+    currentUser = LocalAccounts.publicProfile(user);
+    storeLocal('vx_current',currentUser);
     showApp();
   }
 
   /* ─── LOGOUT ─── */
   function doLogout() {
     currentUser = null;
-    localStorage.removeItem('vx_current');
+    try{localStorage.removeItem('vx_current');}catch{}
+    videos.forEach(v=>URL.revokeObjectURL(v.url));videos.length=0;totalSize=0;renderCards();updateStats();closeModalBtn();closeEditModalBtn();
     document.getElementById('appScreen').classList.remove('show');
     document.getElementById('authScreen').style.display='flex';
     document.getElementById('userDropdown').classList.remove('open');
@@ -865,34 +886,36 @@
     document.getElementById('editEmail').value = currentUser.email;
     editAvatarDataUrl = currentUser.avatar;
     const p = document.getElementById('editAvatarPreview');
-    if (currentUser.avatar) p.innerHTML=`<img src="${currentUser.avatar}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
-    else p.textContent = currentUser.name.charAt(0).toUpperCase();
-    document.getElementById('editModalBg').classList.add('show');
+    setAvatarEl('editAvatarPreview',currentUser);
+    document.getElementById('editModalBg').classList.add('show');document.getElementById('editName').focus();
   }
 
   function previewEditAvatar(input) {
     if (!input.files[0]) return;
+    if(!/^image\/(png|jpeg|webp)$/.test(input.files[0].type)||input.files[0].size>2*1024*1024){showToast('Image PNG, JPEG ou WebP, 2 Mo maximum.',true);return;}
     const r = new FileReader();
     r.onload = e => {
       editAvatarDataUrl = e.target.result;
       const p = document.getElementById('editAvatarPreview');
-      p.innerHTML=`<img src="${editAvatarDataUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+      setAvatarEl('editAvatarPreview',{name:'?',avatar:editAvatarDataUrl});
     };
     r.readAsDataURL(input.files[0]);
   }
 
-  function saveProfile() {
+  async function saveProfile() {
+    const userId=currentUser?.id;if(userId===undefined)return;await accountsReady;if(currentUser?.id!==userId)return;
     const name  = document.getElementById('editName').value.trim();
     const email = document.getElementById('editEmail').value.trim().toLowerCase();
     if (!name||!email) { showToast('Champs requis.', true); return; }
+    if(users.some(u=>u.id!==currentUser.id&&u.email===email)){showToast('Cet email est déjà utilisé.',true);return;}
     currentUser.name   = name;
     currentUser.email  = email;
     currentUser.avatar = editAvatarDataUrl;
     // Update in users array
     const idx = users.findIndex(u=>u.id===currentUser.id);
-    if (idx>-1) users[idx]=currentUser;
-    localStorage.setItem('vx_users', JSON.stringify(users));
-    localStorage.setItem('vx_current', JSON.stringify(currentUser));
+    if (idx>-1) users[idx]={...users[idx],...currentUser};
+    if(!storeLocal('vx_users',users))showToast('Stockage indisponible : profil disponible uniquement dans cette session.',true);
+    storeLocal('vx_current',currentUser);
     refreshUserUI();
     closeEditModalBtn();
     showToast('Profil mis à jour !');
@@ -913,10 +936,12 @@
   function handleFiles(files) {
     const vf = Array.from(files).filter(f=>f.type.startsWith('video/'));
     if (!vf.length) { showToast('Aucun fichier vidéo valide.', true); return; }
-    vf.forEach((f,i)=>setTimeout(()=>simulateUpload(f), i*300));
+    vf.forEach(f=>importQueue.push({file:f,userId:currentUser?.id}));fileInput.value='';runImports();
   }
 
-  function simulateUpload(file) {
+  let importing=false;const importQueue=[];
+  function runImports(){if(importing||!importQueue.length)return;const item=importQueue.shift();if(!currentUser||item.userId!==currentUser.id){runImports();return;}importing=true;simulateUpload(item.file,item.userId);}
+  function simulateUpload(file,userId) {
     const pc = document.getElementById('progressContainer');
     pc.classList.add('show');
     document.getElementById('progressFilename').textContent = file.name;
@@ -926,7 +951,7 @@
       if(pct>=100){ pct=100; clearInterval(iv);
         document.getElementById('progressFill').style.width='100%';
         document.getElementById('progressPct').textContent='100%';
-        setTimeout(()=>{ pc.classList.remove('show'); document.getElementById('progressFill').style.width='0%'; addVideo(file); },400);
+        setTimeout(()=>{ pc.classList.remove('show'); document.getElementById('progressFill').style.width='0%'; if(currentUser?.id===userId)addVideo(file);importing=false;runImports(); },400);
       }
       document.getElementById('progressFill').style.width=pct+'%';
       document.getElementById('progressPct').textContent=Math.round(pct)+'%';
@@ -950,7 +975,7 @@
       const card=document.createElement('div');
       card.className='video-card'; card.style.animationDelay=(i*0.05)+'s';
       card.innerHTML=`
-        <div class="video-thumb">
+        <div class="video-thumb" role="button" tabindex="0" aria-label="Lire ${escHtml(v.file.name)}">
           <video src="${v.url}" muted preload="metadata" style="pointer-events:none"></video>
           <div class="play-overlay"><div class="play-btn"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div></div>
         </div>
@@ -962,6 +987,7 @@
           </div>
         </div>`;
       card.querySelector('.video-thumb').addEventListener('click', () => openModal(v.url, v.file.name));
+      card.querySelector('.video-thumb').addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openModal(v.url,v.file.name);}});
       card.querySelector('.delete-btn').addEventListener('click', e => deleteVideo(v.id, e));
       document.getElementById('videoGrid').appendChild(card);
     });
@@ -981,14 +1007,17 @@
   }
 
   /* ─── MODAL PLAYER ─── */
+  let modalReturnFocus=null;
   function openModal(url,name) {
     document.getElementById('modalVideo').src=url;
     document.getElementById('modalTitle').textContent=name;
-    document.getElementById('modalBg').classList.add('show');
+    modalReturnFocus=document.activeElement;document.getElementById('modalBg').classList.add('show');document.querySelector('#modalBg .modal-close').focus();
   }
   function closeModal(e){ if(e.target===document.getElementById('modalBg')) closeModalBtn(); }
-  function closeModalBtn(){ document.getElementById('modalBg').classList.remove('show'); const v=document.getElementById('modalVideo'); v.pause(); v.src=''; }
-  document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ closeModalBtn(); closeEditModalBtn(); } });
+  function closeModalBtn(){ const wasOpen=document.getElementById('modalBg').classList.contains('show');document.getElementById('modalBg').classList.remove('show');if(wasOpen&&modalReturnFocus?.isConnected)modalReturnFocus.focus(); const v=document.getElementById('modalVideo'); v.pause(); v.src=''; }
+  document.addEventListener('keydown',e=>{
+    if(e.key==='Tab'){const modal=['editModalBg','modalBg'].map(id=>document.getElementById(id)).find(el=>el.classList.contains('show'));if(modal){const items=[...modal.querySelectorAll('button,input:not([type=hidden]),video[controls]')].filter(el=>el.getClientRects().length&&!el.disabled);const first=items[0],last=items.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}}}
+    if(e.key==='Escape'){ closeModalBtn(); closeEditModalBtn(); } });
 
   /* ─── HELPERS ─── */
   function formatSize(b){ if(b<1024)return b+' B'; if(b<1048576)return(b/1024).toFixed(1)+' KB'; if(b<1073741824)return(b/1048576).toFixed(1)+' MB'; return(b/1073741824).toFixed(2)+' GB'; }
@@ -1004,3 +1033,4 @@
 </script>
 </body>
 </html>
+
