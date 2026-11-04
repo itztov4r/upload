@@ -1,31 +1,29 @@
-# VOLTEX — Site de Partage de Vidéos
+# VOLTEX — démonstration vidéo locale
 
-## Fichiers
-- `index.html` — Site complet avec système de comptes (fichier tout-en-un, fonctionne par double-clic)
-- `style.css` — Feuille de styles séparée
-- `app.js` — JavaScript séparé
-- `README.md` — Ce fichier
+Interface de profils locaux, import de vidéos, lecteur, suppression et statistiques. Les fichiers vidéo restent sur cet appareil : aucun serveur ne reçoit les vidéos, et elles ne sont pas conservées après rechargement ou déconnexion.
 
-## Comment utiliser
+## Lancer
 
-### Option 1 — La plus simple
-Ouvrez `index.html` par double-clic dans votre navigateur.
-Le système de comptes, l'upload et la lecture vidéo fonctionnent directement.
+Depuis le dossier du projet :
 
-### Option 2 — Serveur local (pour style.css + app.js séparés)
-```
+```sh
 python -m http.server 8000
 ```
-Puis ouvrez : http://localhost:8000
 
-## Fonctionnalités
-- Inscription / Connexion avec photo de profil
-- Upload par clic ou glisser-déposer
-- Lecture vidéo en modal
-- Suppression de vidéos
-- Statistiques en temps réel
-- Modification du profil utilisateur
-- Données sauvegardées localement (localStorage)
+Ouvrir `http://localhost:8000`. Utiliser HTTPS en hébergement. Web Crypto est nécessaire pour les mots de passe locaux ; le lancement par double-clic ne fonctionne pas uniformément selon les navigateurs.
 
-## Formats acceptés
-MP4, WebM, MOV, AVI, MKV, OGV, 3GP
+`index.html` contient les styles et le script de l'application complète et charge `accounts.js`. `app.js` et `style.css` sont un ancien exemple séparé de galerie vidéo ; ils ne constituent pas une deuxième application complète avec comptes.
+
+## Comptes et confidentialité
+
+Il s'agit d'une **démonstration**, pas d'une authentification serveur. Ne pas utiliser de vrai mot de passe ni de données sensibles. Les profils et empreintes de mots de passe sont dans le stockage du navigateur, modifiable par toute personne ayant accès à ce navigateur. Les anciens mots de passe en clair sont migrés vers PBKDF2-SHA-256 avec sel aléatoire. Le profil actif ne conserve aucun secret. La migration ne peut remplacer les anciennes valeurs si le stockage est bloqué : voir [AUDIT.md](AUDIT.md).
+
+Les vidéos importées sont lues via des URLs locales temporaires. Leur décodage dépend des codecs du navigateur, même si le fichier porte une extension vidéo. Les avatars acceptent PNG, JPEG et WebP jusqu'à 2 Mo. Le glisser-déposer et le sélecteur acceptent les fichiers reconnus comme `video/*`.
+
+## Vérifier
+
+```sh
+node --test tests/*.test.js
+```
+
+Trois tests couvrent les mots de passe salés, la migration des anciens profils et le stockage indisponible. Les limites de vérification visuelle et les contrôles complémentaires sont documentés dans [AUDIT.md](AUDIT.md).
