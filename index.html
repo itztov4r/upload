@@ -512,7 +512,33 @@
       .nav-links { display: none; }
       .hero { padding-top: 40px; }
     }
-  </style>
+  
+/* Mobile/keyboard pass — 2026-11. Avoid clipped navigation, forms and galleries. */
+@media (max-width: 600px) {
+  #authScreen { min-height: 100svh; padding: 24px 14px; }
+  .auth-wrap { width: 100%; max-width: 100%; min-width: 0; }
+  .auth-box { padding: 24px 18px; }
+  .auth-tabs { width: 100%; }
+  .auth-tab { flex: 1 1 0; min-width: 0; }
+  .field-group input, .field-group textarea, .field-group select { width: 100%; max-width: 100%; min-width: 0; font-size: 16px; }
+  #appScreen nav { gap: 12px; flex-wrap: wrap; }
+  .nav-user { min-width: 0; margin-left: auto; }
+  .nav-username { min-width: 0; max-width: 112px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .user-dropdown { max-width: min(300px, calc(100vw - 26px)); }
+  .hero { padding-top: 32px; }
+  .hero h1 { font-size: clamp(2.15rem, 12vw, 4.4rem); overflow-wrap: anywhere; }
+  .main, .main > *, .upload-section, .video-card { min-width: 0; }
+  .upload-zone { padding: 32px 17px; }
+  .video-grid { grid-template-columns: minmax(0, 1fr); }
+  .modal { max-height: calc(100svh - 24px); overflow-y: auto; }
+  .modal-header { gap: 12px; }
+  .modal-header h3 { min-width: 0; overflow-wrap: anywhere; }
+  .toast { max-width: calc(100vw - 30px); left: 15px; right: 15px; bottom: max(14px, env(safe-area-inset-bottom)); }
+}
+@media (min-width: 601px) and (max-width: 900px) { .main { grid-template-columns: minmax(0, 1fr); } .video-grid { grid-template-columns: repeat(auto-fit,minmax(210px,1fr)); } }
+@media (prefers-reduced-motion: reduce) { *,*::before,*::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior:auto !important; } }
+
+</style>
 </head>
 <body>
 
